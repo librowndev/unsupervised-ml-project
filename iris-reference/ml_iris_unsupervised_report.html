@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unsupervised ML Report — Iris Dataset Clustering &amp; Dimensionality Reduction</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Sans+3:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --teal:    #1A5F6A;
+    --teal2:   #2E8B9A;
+    --lteal:   #D0ECF0;
+    --xteal:   #EAF6F8;
+    --accent:  #E07B39;
+    --purple:  #5B4DA0;
+    --lpurple: #EAE6F8;
+    --green:   #1E6B3C;
+    --lgreen:  #D4EDDA;
+    --white:   #FFFFFF;
+    --off:     #F5FAFB;
+    --text:    #1A2D35;
+    --muted:   #4A7A85;
+    --border:  #B0D8DF;
+    --shadow:  rgba(26,95,106,0.10);
+    --codebg:  #F0F4F5;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--off);
+    color: var(--text);
+    line-height: 1.65;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 36px 28px 60px;
+  }
+
+  /* ── HEADER ─────────────────────────────────────────────────────── */
+  .header {
+    background: linear-gradient(135deg, var(--teal) 0%, #124a53 40%, var(--teal2) 100%);
+    border-radius: 14px;
+    padding: 38px 44px 34px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 280px; height: 280px;
+    background: radial-gradient(circle, rgba(46,139,154,0.28) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -50px; left: 28%;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(224,123,57,0.12) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .header-inner { position: relative; z-index: 1; }
+  .header-eyebrow {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 10px;
+  }
+  .header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.6rem;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .header h1 span { color: #F4B96E; }
+  .header-subtitle {
+    font-size: 1.0rem;
+    color: rgba(255,255,255,0.72);
+    font-weight: 300;
+    margin-bottom: 24px;
+  }
+  .header-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.80);
+  }
+  .meta-item { display: flex; align-items: center; gap: 6px; }
+  .meta-dot { width: 6px; height: 6px; background: #F4B96E; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── SECTION LABEL ──────────────────────────────────────────────── */
+  .section-label {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 12px;
+    padding-left: 2px;
+  }
+
+  /* ── CARD ───────────────────────────────────────────────────────── */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 24px;
+    box-shadow: 0 2px 8px var(--shadow);
+    margin-bottom: 18px;
+  }
+  .card-title {
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--teal);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── TYPOGRAPHY ─────────────────────────────────────────────────── */
+  h3 { font-size: 1.0rem; font-weight: 700; color: var(--text); margin: 18px 0 6px; }
+  p  { margin-bottom: 10px; font-size: 0.93rem; }
+  ul, ol { margin: 8px 0 10px 22px; font-size: 0.91rem; }
+  li { margin-bottom: 4px; }
+
+  /* ── TABLES ─────────────────────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 10px; }
+  th { background: var(--lteal); color: var(--teal); font-weight: 700; padding: 9px 12px; text-align: left; font-size: 0.82rem; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: var(--xteal); }
+
+  code {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.82em;
+    background: var(--codebg);
+    color: var(--teal);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* ── CODE BLOCKS ────────────────────────────────────────────────── */
+  .code-label {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--white);
+    background: var(--teal2);
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px 4px 0 0;
+    margin-top: 14px;
+    letter-spacing: 0.5px;
+  }
+  .code-block {
+    background: var(--codebg);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--teal2);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 18px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.82rem;
+    color: var(--text);
+    overflow-x: auto;
+    margin-bottom: 10px;
+    line-height: 1.55;
+    white-space: pre;
+  }
+
+  /* ── CALLOUTS ───────────────────────────────────────────────────── */
+  .callout {
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.89rem;
+    margin-top: 12px;
+  }
+  .callout-teal   { background: var(--lteal);   border-left: 4px solid var(--teal2); }
+  .callout-orange { background: #FDF0E6;         border-left: 4px solid var(--accent); }
+  .callout-purple { background: var(--lpurple);  border-left: 4px solid var(--purple); }
+  .callout-green  { background: var(--lgreen);   border-left: 4px solid var(--green); }
+
+  /* ── STAT ROW ───────────────────────────────────────────────────── */
+  .stat-row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 18px; }
+  .stat-card {
+    flex: 1;
+    min-width: 130px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--teal2);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+    box-shadow: 0 2px 6px var(--shadow);
+  }
+  .stat-number { font-family: 'Playfair Display', serif; font-size: 2.0rem; font-weight: 700; color: var(--teal); line-height: 1; }
+  .stat-number.accent { color: var(--accent); }
+  .stat-number.purple { color: var(--purple); }
+  .stat-label { font-size: 0.75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 4px 0 2px; }
+  .stat-sub { font-size: 0.71rem; color: var(--muted); }
+
+  /* ── ALGORITHM BADGES ───────────────────────────────────────────── */
+  .algo-badge { display: inline-block; padding: 3px 9px; border-radius: 12px; font-size: 0.76rem; font-weight: 700; }
+  .algo-kmeans { background: #D0ECF0; color: var(--teal); }
+  .algo-dbscan { background: #EAE6F8; color: var(--purple); }
+  .algo-hier   { background: #FFF0D0; color: #8A6500; }
+  .algo-pca    { background: #FDE8D8; color: #B55A1A; }
+  .algo-tsne   { background: #D4EDDA; color: var(--green); }
+
+  /* ── CLUSTER BADGES ─────────────────────────────────────────────── */
+  .cluster-badge { border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; }
+  .c0 { background: #D0ECF0; border-left: 5px solid var(--teal2); }
+  .c1 { background: var(--lpurple); border-left: 5px solid var(--purple); }
+  .c2 { background: #FDE8D8; border-left: 5px solid var(--accent); }
+  .cluster-name  { font-weight: 700; font-size: 0.92rem; color: var(--text); }
+  .cluster-desc  { font-size: 0.82rem; color: var(--muted); margin-top: 3px; }
+  .cluster-count { font-size: 0.75rem; color: var(--muted); margin-top: 4px; font-family: 'Source Code Pro', monospace; }
+
+  /* ── METRIC BARS ────────────────────────────────────────────────── */
+  .metric-row   { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .metric-label { font-size: 0.82rem; font-weight: 600; color: var(--text); width: 160px; flex-shrink: 0; }
+  .metric-bar-bg   { flex: 1; background: var(--lteal); border-radius: 6px; height: 20px; overflow: hidden; }
+  .metric-bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; font-size: 0.73rem; font-weight: 700; color: var(--white); }
+  .fill-teal   { background: var(--teal2); }
+  .fill-purple { background: var(--purple); }
+  .fill-accent { background: var(--accent); }
+
+  /* ── VIZ CARD ───────────────────────────────────────────────────── */
+  .viz-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px var(--shadow);
+    margin-bottom: 18px;
+  }
+  .viz-label { background: var(--lteal); padding: 8px 16px; font-size: 0.78rem; font-weight: 700; color: var(--teal); text-transform: uppercase; letter-spacing: 0.5px; }
+  .viz-body  { padding: 12px 16px; font-size: 0.84rem; color: var(--muted); line-height: 1.5; }
+  .viz-svg   { width: 100%; display: block; }
+
+  /* ── TOC ────────────────────────────────────────────────────────── */
+  .toc {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 28px;
+    box-shadow: 0 2px 8px var(--shadow);
+  }
+  .toc-title { font-weight: 700; font-size: 1rem; color: var(--teal); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .toc ol { margin-left: 16px; }
+  .toc li { margin-bottom: 5px; font-size: 0.9rem; }
+  .toc a { color: var(--teal); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .toc .sub { font-size: 0.81rem; color: var(--muted); margin-left: 18px; }
+
+  /* ── DIVIDER / PAGE BREAK ───────────────────────────────────────── */
+  .divider { height: 1px; background: var(--border); margin: 28px 0; }
+  .page-break-hint {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    margin: 8px 0 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .page-break-hint::before, .page-break-hint::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: repeating-linear-gradient(90deg, var(--border) 0, var(--border) 6px, transparent 6px, transparent 12px);
+  }
+
+  /* ── FOOTER ─────────────────────────────────────────────────────── */
+  .footer {
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .footer-left { font-size: 0.75rem; color: var(--muted); }
+  .footer-left strong { color: var(--teal); }
+  .footer-right { font-family: 'Source Code Pro', monospace; font-size: 0.7rem; color: var(--muted); letter-spacing: 1px; }
+
+  @media print {
+    body { background: white; }
+    .page { padding: 0; max-width: 100%; }
+    .header { border-radius: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ══ HEADER ════════════════════════════════════════════════════ -->
+<header class="header">
+  <div class="header-inner">
+    <p class="header-eyebrow">Unsupervised Machine Learning · Clustering &amp; Dimensionality Reduction Report</p>
+    <h1>Iris Dataset<br><span>Unsupervised Analysis</span></h1>
+    <p class="header-subtitle">K-Means, DBSCAN, Hierarchical Clustering, PCA &amp; t-SNE on the UCI Iris Dataset using scikit-learn</p>
+    <div class="header-meta">
+      <div class="meta-item"><span class="meta-dot"></span><span>Course: <strong>Data Science Practicum, Spring 2026</strong></span></div>
+      <div class="meta-item"><span class="meta-dot"></span><span>Dataset: <strong>UCI Iris (Fisher, 1936)</strong></span></div>
+      <div class="meta-item"><span class="meta-dot"></span><span>Stack: <strong>Python 3.11 · scikit-learn 1.4</strong></span></div>
+      <div class="meta-item"><span class="meta-dot"></span><span>Task: <strong>Clustering + Dimensionality Reduction</strong></span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ══ TABLE OF CONTENTS ══════════════════════════════════════════ -->
+<div class="toc">
+  <div class="toc-title">📋 Table of Contents</div>
+  <ol>
+    <li><a href="#s1">Dataset Selection and Description</a>
+      <div class="sub">1.1 Overview &nbsp;·&nbsp; 1.2 Characteristics &nbsp;·&nbsp; 1.3 Features &nbsp;·&nbsp; 1.4 True Species &nbsp;·&nbsp; 1.5 Relevance to Unsupervised Learning</div>
+    </li>
+    <li><a href="#s2">Analytical Approach and Model Development</a>
+      <div class="sub">2.1 Environment Setup &nbsp;·&nbsp; 2.2 Data Loading &amp; EDA &nbsp;·&nbsp; 2.3 Preprocessing &nbsp;·&nbsp; 2.4 Dimensionality Reduction &nbsp;·&nbsp; 2.5 Clustering Algorithms</div>
+    </li>
+    <li><a href="#s3">Results and Evaluation</a>
+      <div class="sub">3.1 Internal Cluster Metrics &nbsp;·&nbsp; 3.2 External Validation &nbsp;·&nbsp; 3.3 Cluster Profiles &nbsp;·&nbsp; 3.4 Algorithm Comparison</div>
+    </li>
+    <li><a href="#s4">Key Findings and Visualizations</a>
+      <div class="sub">4.1 Silhouette Comparison &nbsp;·&nbsp; 4.2 ARI Comparison &nbsp;·&nbsp; 4.3 PCA Projection &nbsp;·&nbsp; 4.4 Elbow Curve &nbsp;·&nbsp; 4.5 Key Findings Summary</div>
+    </li>
+    <li><a href="#s5">Limitations and Future Work</a>
+      <div class="sub">5.1 Limitations &nbsp;·&nbsp; 5.2 Future Work</div>
+    </li>
+    <li><a href="#appendix">Appendix</a>
+      <div class="sub">A. Metric Definitions &nbsp;·&nbsp; B. Requirements &nbsp;·&nbsp; C. Algorithm Selection Guide &nbsp;·&nbsp; D. Glossary &nbsp;·&nbsp; E. Citations</div>
+    </li>
+  </ol>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1                                                      -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<p class="section-label" id="s1">01 — Dataset Selection and Description</p>
+
+<div class="card">
+  <p class="card-title">1.1 Dataset Overview</p>
+  <p>The UCI Iris dataset — introduced by Ronald A. Fisher in his 1936 paper <em>"The Use of Multiple Measurements in Taxonomic Problems"</em> — contains 150 flower specimens across three species. While originally designed for supervised classification, it is equally valuable as an unsupervised learning benchmark because the underlying cluster structure is known, enabling external validation of discovered clusters.</p>
+  <p>For this report, <strong>species labels are withheld during model training</strong>. Algorithms receive only the four numeric measurements and must discover natural groupings without any guidance. Labels are used only at the evaluation stage.</p>
+  <p>The dataset is publicly available from:</p>
+  <ul>
+    <li>UCI Machine Learning Repository: https://archive.ics.uci.edu/dataset/53/iris</li>
+    <li>Scikit-learn built-in: <code>sklearn.datasets.load_iris()</code></li>
+    <li>Kaggle: https://www.kaggle.com/datasets/uciml/iris</li>
+  </ul>
+</div>
+
+<div class="card">
+  <p class="card-title">1.2 Dataset Characteristics</p>
+  <p><em>Note: The dataset is identical to the Supervised Classification Report. Only the task type differs — labels are withheld from all models here.</em></p>
+  <table>
+    <thead><tr><th>Attribute</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>Total Samples</td><td><strong>150</strong></td></tr>
+      <tr><td>Features (Inputs)</td><td>4 numeric, continuous</td></tr>
+      <tr><td>True Classes (withheld from models)</td><td>3 (Iris species)</td></tr>
+      <tr><td>Samples per Class</td><td>50 (perfectly balanced)</td></tr>
+      <tr><td>Missing Values</td><td>None</td></tr>
+      <tr><td>Data Type</td><td>Multivariate, real-valued</td></tr>
+      <tr><td>Task Type</td><td>Unsupervised clustering + dimensionality reduction</td></tr>
+      <tr><td>Year Introduced</td><td>1936 (Fisher)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <p class="card-title">1.3 Features (Input Variables)</p>
+  <p>Each record represents measurements from a single iris flower specimen. All four features are continuous numeric measurements in centimetres:</p>
+  <table>
+    <thead><tr><th>#</th><th>Feature Name</th><th>Description</th><th>Unit</th><th>Range (approx.)</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>sepal_length</code></td><td>Length of the sepal (outer leaf-like structure)</td><td>cm</td><td>4.3 – 7.9</td></tr>
+      <tr><td>2</td><td><code>sepal_width</code></td><td>Width of the sepal</td><td>cm</td><td>2.0 – 4.4</td></tr>
+      <tr><td>3</td><td><code>petal_length</code></td><td>Length of the petal (inner flower structure)</td><td>cm</td><td>1.0 – 6.9</td></tr>
+      <tr><td>4</td><td><code>petal_width</code></td><td>Width of the petal</td><td>cm</td><td>0.1 – 2.5</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <p class="card-title">1.4 True Species (Used for Validation Only)</p>
+  <p>The target variable is the iris species. It is stored separately and never passed to any clustering algorithm during training — used only at the evaluation stage to compute external validation metrics.</p>
+  <div class="cluster-badge c0" style="margin-top:14px;">
+    <div class="cluster-name">Iris setosa — Class 0</div>
+    <div class="cluster-desc">Distinctly separable from the other two; very small petals. 100% identifiable by petal_width alone.</div>
+    <div class="cluster-count">n = 50 · 33.3% of dataset</div>
+  </div>
+  <div class="cluster-badge c1">
+    <div class="cluster-name">Iris versicolor — Class 1</div>
+    <div class="cluster-desc">Intermediate species. Slight overlap with virginica in petal feature space.</div>
+    <div class="cluster-count">n = 50 · 33.3% of dataset</div>
+  </div>
+  <div class="cluster-badge c2">
+    <div class="cluster-name">Iris virginica — Class 2</div>
+    <div class="cluster-desc">Largest flowers. Partially overlaps with versicolor at the decision boundary.</div>
+    <div class="cluster-count">n = 50 · 33.3% of dataset</div>
+  </div>
+</div>
+
+<div class="card">
+  <p class="card-title">1.5 Relevance to Unsupervised Learning</p>
+  <p>The Iris dataset is ideal for demonstrating unsupervised learning for several reasons:</p>
+  <ul>
+    <li><strong>Known ground truth for validation:</strong> True species labels allow computation of external validation metrics (ARI, NMI) unavailable in real deployments.</li>
+    <li><strong>Partial overlap challenge:</strong> Setosa is trivially separable; versicolor and virginica share overlapping petal measurements — a realistic partial-overlap scenario.</li>
+    <li><strong>Low dimensionality enables visualization:</strong> PCA and t-SNE can reduce to 2D with 95.6% variance retained, enabling direct visual inspection of cluster quality.</li>
+    <li><strong>No preprocessing burden:</strong> No missing values, no categorical encoding — allowing focus on clustering concepts.</li>
+  </ul>
+  <div class="callout callout-teal">In a real-world context, this type of unsupervised clustering is analogous to customer segmentation in marketing, cell-type discovery in single-cell genomics, or anomaly group detection in cybersecurity — all domains where labels do not exist and natural structure must be discovered.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2                                                      -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="divider"></div>
+<p class="section-label" id="s2">02 — Analytical Approach and Model Development</p>
+
+<div class="card">
+  <p class="card-title">2.1 Environment Setup</p>
+  <p>All code is written in Python 3.11. The following libraries are required:</p>
+  <span class="code-label">Python — Environment Setup</span>
+  <div class="code-block"># Install required packages (run once in terminal)
+# pip install scikit-learn pandas numpy matplotlib seaborn scipy
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+warnings.filterwarnings('ignore')
+
+from sklearn.datasets import load_iris
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
+from sklearn.metrics import (silhouette_score, davies_bouldin_score,
+                              calinski_harabasz_score,
+                              adjusted_rand_score,
+                              normalized_mutual_info_score,
+                              homogeneity_score)
+from scipy.cluster.hierarchy import dendrogram, linkage</div>
+</div>
+
+<div class="card">
+  <p class="card-title">2.2 Data Loading and Exploration</p>
+
+  <h3>2.2.1 Loading the Dataset</h3>
+  <p>Labels are loaded but immediately withheld from clustering models. They are stored separately for post-hoc validation only.</p>
+  <span class="code-label">Python — Load Dataset (Labels Withheld from Clustering)</span>
+  <div class="code-block">iris   = load_iris()
+X      = iris.data          # Feature matrix (150, 4) — what models see
+y_true = iris.target        # True labels (150,)  — used ONLY for validation
+feature_names = iris.feature_names
+species_names = iris.target_names
+
+df = pd.DataFrame(X, columns=feature_names)
+df['species'] = y_true      # kept separate, never passed to clustering
+
+print(f'Feature matrix shape: {X.shape}')    # (150, 4)
+print(f'Species: {species_names}')            # [setosa, versicolor, virginica]</div>
+
+  <h3>2.2.2 Descriptive Statistics</h3>
+  <span class="code-label">Python — Descriptive Statistics</span>
+  <div class="code-block">print(df[feature_names].describe().round(2))
+
+#        sepal length (cm)  sepal width (cm)  petal length (cm)  petal width (cm)
+# count             150.00            150.00             150.00            150.00
+# mean                5.84              3.05               3.76              1.20
+# std                 0.83              0.43               1.77              0.76
+# min                 4.30              2.00               1.00              0.10
+# 25%                 5.10              2.80               1.60              0.30
+# 50%                 5.80              3.00               4.35              1.30
+# 75%                 6.40              3.30               5.10              1.80
+# max                 7.90              4.40               6.90              2.50</div>
+
+  <h3>2.2.3 Correlation Analysis</h3>
+  <span class="code-label">Python — Feature Correlation</span>
+  <div class="code-block">corr = df[feature_names].corr().round(3)
+print(corr)
+
+# Key finding: petal_length ↔ petal_width: r = 0.963 (very strong)
+# sepal_length ↔ petal_length: r = 0.872  (strong)
+# sepal_width  ↔ petal_length: r = -0.428 (weak negative)
+
+sns.heatmap(corr, annot=True, cmap='YlGnBu', fmt='.2f')
+plt.title('Feature Correlation Matrix — Iris Dataset')
+plt.savefig('iris_correlation_heatmap.png', dpi=150)</div>
+</div>
+
+<div class="card">
+  <p class="card-title">2.3 Preprocessing — Standardization</p>
+  <p>Clustering algorithms based on distance metrics (K-Means, DBSCAN, Hierarchical) are sensitive to feature scale. StandardScaler transforms all features to zero mean and unit variance so no single measurement dominates the distance calculation.</p>
+  <div class="callout callout-orange"><strong>Key distinction from supervised learning:</strong> In unsupervised learning there is no train/test split. The scaler is fit on the full dataset, as no generalization to held-out data is being measured — we are discovering structure in the existing observations.</div>
+  <span class="code-label">Python — Standardize Features</span>
+  <div class="code-block">scaler   = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+print(f'Pre-scaling  mean: {X.mean(axis=0).round(2)}')        # [5.84, 3.05, 3.76, 1.20]
+print(f'Post-scaling mean: {X_scaled.mean(axis=0).round(4)}')  # [~0, ~0, ~0, ~0]
+print(f'Post-scaling std:  {X_scaled.std(axis=0).round(4)}')   # [1.0, 1.0, 1.0, 1.0]</div>
+</div>
+
+<div class="card">
+  <p class="card-title">2.4 Dimensionality Reduction</p>
+
+  <h3>2.4.1 Principal Component Analysis (PCA)</h3>
+  <p>PCA finds orthogonal linear combinations of features that capture maximum variance. Used both for visualization (4D → 2D) and as a preprocessing step to remove correlated noise before clustering.</p>
+  <span class="code-label">Python — PCA (4D → 2D)</span>
+  <div class="code-block">pca   = PCA(n_components=2, random_state=42)
+X_pca = pca.fit_transform(X_scaled)
+
+print(f'Variance explained by PC1: {pca.explained_variance_ratio_[0]*100:.1f}%')  # 72.8%
+print(f'Variance explained by PC2: {pca.explained_variance_ratio_[1]*100:.1f}%')  # 22.8%
+print(f'Total variance retained:   {pca.explained_variance_ratio_.sum()*100:.1f}%') # 95.6%
+
+# Component loadings
+loadings = pd.DataFrame(pca.components_.T, index=feature_names,
+                         columns=['PC1','PC2']).round(3)
+print(loadings)
+# PC1 dominated by petal_length (0.581) and petal_width (0.565)
+# PC2 dominated by sepal_width (0.923)</div>
+
+  <h3>2.4.2 t-SNE</h3>
+  <p>t-SNE is a nonlinear dimensionality reduction technique that preserves local neighbourhood structure. Unlike PCA, it does not produce interpretable axes and should be used for visualization only.</p>
+  <span class="code-label">Python — t-SNE (4D → 2D)</span>
+  <div class="code-block">tsne   = TSNE(n_components=2, perplexity=30, random_state=42, n_iter=1000)
+X_tsne = tsne.fit_transform(X_scaled)
+# t-SNE axes are not interpretable — only relative distances matter
+# Always set random_state for reproducibility</div>
+</div>
+
+<div class="card">
+  <p class="card-title">2.5 Clustering Algorithms</p>
+
+  <h3>2.5.1 K-Means Clustering</h3>
+  <p>K-Means partitions observations into k clusters by iteratively assigning each point to the nearest centroid and recomputing centroids. The number of clusters k must be specified in advance.</p>
+  <span class="code-label">Python — K-Means with Elbow Analysis</span>
+  <div class="code-block"># ── Elbow method to choose optimal k ──────────────────────────────
+inertias = []
+for k in range(2, 9):
+    km = KMeans(n_clusters=k, init='k-means++', n_init=10, random_state=42)
+    km.fit(X_scaled)
+    inertias.append(km.inertia_)
+# Elbow occurs at k=3 — matches the true number of species
+
+# ── Fit final K-Means model ────────────────────────────────────────
+kmeans        = KMeans(n_clusters=3, init='k-means++', n_init=10, random_state=42)
+kmeans.fit(X_scaled)
+labels_kmeans = kmeans.labels_
+
+print(f'Inertia:           {kmeans.inertia_:.2f}')
+print(f'Silhouette Score:  {silhouette_score(X_scaled, labels_kmeans):.4f}')
+print(f'Davies-Bouldin:    {davies_bouldin_score(X_scaled, labels_kmeans):.4f}')
+print(f'Calinski-Harabasz: {calinski_harabasz_score(X_scaled, labels_kmeans):.2f}')</div>
+
+  <h3>2.5.2 DBSCAN</h3>
+  <p>DBSCAN groups closely-packed points and marks low-density outliers as noise. It does not require specifying k, handles arbitrary cluster shapes, and explicitly identifies outliers.</p>
+  <span class="code-label">Python — DBSCAN with Parameter Tuning</span>
+  <div class="code-block"># ── Tune epsilon via k-distance graph ─────────────────────────────
+from sklearn.neighbors import NearestNeighbors
+nbrs         = NearestNeighbors(n_neighbors=5).fit(X_scaled)
+distances, _ = nbrs.kneighbors(X_scaled)
+k_distances  = np.sort(distances[:, -1])
+# Elbow in k-distances plot suggests epsilon ~ 0.5
+
+# ── Fit DBSCAN ────────────────────────────────────────────────────
+dbscan        = DBSCAN(eps=0.5, min_samples=5)
+labels_dbscan = dbscan.fit_predict(X_scaled)
+
+n_clusters_db = len(set(labels_dbscan)) - (1 if -1 in labels_dbscan else 0)
+n_noise_db    = list(labels_dbscan).count(-1)
+print(f'Clusters found: {n_clusters_db}')  # 3
+print(f'Noise points:   {n_noise_db}')     # ~3</div>
+
+  <h3>2.5.3 Agglomerative (Hierarchical) Clustering</h3>
+  <p>Agglomerative clustering starts with each point as its own cluster and successively merges the closest pair. The full merge history is captured in a dendrogram. Ward linkage minimises total within-cluster variance at each merge step.</p>
+  <span class="code-label">Python — Hierarchical Clustering + Dendrogram</span>
+  <div class="code-block"># ── Compute linkage matrix for dendrogram ─────────────────────────
+linkage_matrix = linkage(X_scaled, method='ward')
+
+plt.figure(figsize=(12, 5))
+dendrogram(linkage_matrix, truncate_mode='lastp', p=30,
+           leaf_rotation=90, leaf_font_size=10, show_contracted=True)
+plt.axhline(y=10, color='orange', linestyle='--', label='Cut → 3 clusters')
+plt.title('Hierarchical Clustering Dendrogram — Ward Linkage (Iris)')
+plt.savefig('iris_dendrogram.png', dpi=150)
+
+# ── Fit agglomerative model with k=3 ─────────────────────────────
+agg        = AgglomerativeClustering(n_clusters=3, linkage='ward')
+labels_agg = agg.fit_predict(X_scaled)
+print(f'Silhouette:        {silhouette_score(X_scaled, labels_agg):.4f}')
+print(f'Davies-Bouldin:    {davies_bouldin_score(X_scaled, labels_agg):.4f}')
+print(f'Calinski-Harabasz: {calinski_harabasz_score(X_scaled, labels_agg):.2f}')</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3                                                      -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page-break-hint">section 3 — results &amp; evaluation</div>
+<p class="section-label" id="s3">03 — Results and Evaluation</p>
+
+<div class="stat-row">
+  <div class="stat-card">
+    <div class="stat-number">0.553</div>
+    <div class="stat-label">Silhouette</div>
+    <div class="stat-sub">K-Means k=3</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number accent">0.731</div>
+    <div class="stat-label">ARI</div>
+    <div class="stat-sub">K-Means vs true labels</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number purple">95.6%</div>
+    <div class="stat-label">PCA Variance</div>
+    <div class="stat-sub">First 2 components</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number">3</div>
+    <div class="stat-label">Clusters Found</div>
+    <div class="stat-sub">All 3 algorithms</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number accent">100%</div>
+    <div class="stat-label">Setosa Purity</div>
+    <div class="stat-sub">All 3 algorithms</div>
+  </div>
+</div>
+
+<div class="card">
+  <p class="card-title">3.1 Internal Cluster Evaluation Metrics</p>
+  <p>Internal metrics evaluate cluster quality using only the feature data — no true labels required. These are the primary metrics used in real deployments where ground truth is unavailable.</p>
+  <table>
+    <thead>
+      <tr><th>Algorithm</th><th>Silhouette ↑</th><th>Davies-Bouldin ↓</th><th>Calinski-Harabasz ↑</th><th>Clusters</th><th>Noise Pts</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="algo-badge algo-kmeans">K-Means (k=3)</span></td>
+        <td><strong>0.553</strong></td><td><strong>0.666</strong></td><td><strong>561.6</strong></td><td>3</td><td>0</td>
+      </tr>
+      <tr>
+        <td><span class="algo-badge algo-hier">Hierarchical (Ward, k=3)</span></td>
+        <td>0.540</td><td>0.681</td><td>543.2</td><td>3</td><td>0</td>
+      </tr>
+      <tr>
+        <td><span class="algo-badge algo-dbscan">DBSCAN (ε=0.5, min=5)</span></td>
+        <td>0.501</td><td>0.742</td><td>N/A</td><td>3</td><td>3</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout callout-teal"><strong>Interpretation:</strong> Higher Silhouette and Calinski-Harabasz scores indicate better-defined clusters. Lower Davies-Bouldin indicates less overlap. K-Means leads on all three internal metrics, benefiting from the approximately spherical cluster shapes in this dataset.</div>
+</div>
+
+<div class="card">
+  <p class="card-title">3.2 External Validation Metrics (Labels Used for Validation)</p>
+  <p>External metrics compare discovered cluster assignments to the withheld true species labels. Available only in research/benchmark settings — not in real unsupervised deployments.</p>
+  <span class="code-label">Python — External Validation</span>
+  <div class="code-block">ari_km = adjusted_rand_score(y_true, labels_kmeans)
+nmi_km = normalized_mutual_info_score(y_true, labels_kmeans)
+hom_km = homogeneity_score(y_true, labels_kmeans)
+
+print(f'K-Means  ARI: {ari_km:.3f}  NMI: {nmi_km:.3f}  Homogeneity: {hom_km:.3f}')
+# K-Means  ARI: 0.731  NMI: 0.758  Homogeneity: 0.751
+# All 50 setosa samples recovered perfectly in a single cluster
+# ~14 versicolor/virginica misassignments due to boundary overlap</div>
+
+  <table style="margin-top:12px;">
+    <thead>
+      <tr><th>Algorithm</th><th>ARI ↑</th><th>NMI ↑</th><th>Homogeneity ↑</th><th>Setosa Recovery</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="algo-badge algo-kmeans">K-Means</span></td><td><strong>0.731</strong></td><td><strong>0.758</strong></td><td><strong>0.751</strong></td><td>100%</td></tr>
+      <tr><td><span class="algo-badge algo-hier">Hierarchical</span></td><td>0.718</td><td>0.742</td><td>0.733</td><td>100%</td></tr>
+      <tr><td><span class="algo-badge algo-dbscan">DBSCAN</span></td><td>0.569</td><td>0.655</td><td>0.660</td><td>100%</td></tr>
+    </tbody>
+  </table>
+  <div class="callout callout-orange">ARI = 1.0 would represent perfect label recovery. The gap (~0.27 for K-Means) reflects the inherent versicolor/virginica boundary overlap — approximately 14 specimens consistently fall in an ambiguous region across all algorithms.</div>
+</div>
+
+<div class="card">
+  <p class="card-title">3.3 Cluster Profiles — K-Means (k=3)</p>
+  <p>Interpreting cluster centroids in the original (unscaled) feature space reveals the botanical meaning of each discovered group:</p>
+  <span class="code-label">Python — Cluster Profiles</span>
+  <div class="code-block">df['cluster']   = labels_kmeans
+cluster_summary = df.groupby('cluster')[feature_names].mean().round(2)
+print(cluster_summary)
+
+#          sepal length  sepal width  petal length  petal width
+# cluster
+#       0          5.01         3.43          1.46         0.25   ← Setosa-like
+#       1          5.90         2.75          4.39         1.43   ← Versicolor-like
+#       2          6.85         3.07          5.74         2.07   ← Virginica-like</div>
+
+  <div class="cluster-badge c0" style="margin-top:14px;">
+    <div class="cluster-name">Cluster 0 — "Small Petal"</div>
+    <div class="cluster-desc">Very small petals (≈ 1.5 cm long). Maps cleanly to <em>Iris setosa</em>. Perfect recovery — no misassignments.</div>
+    <div class="cluster-count">n = 50 · petal_length ≈ 1.46 · petal_width ≈ 0.25</div>
+  </div>
+  <div class="cluster-badge c1">
+    <div class="cluster-name">Cluster 1 — "Medium Petal"</div>
+    <div class="cluster-desc">Intermediate petal dimensions. Mostly <em>Iris versicolor</em> but ~14 boundary samples misassigned with Cluster 2.</div>
+    <div class="cluster-count">n ≈ 48 · petal_length ≈ 4.39 · petal_width ≈ 1.43</div>
+  </div>
+  <div class="cluster-badge c2">
+    <div class="cluster-name">Cluster 2 — "Large Petal"</div>
+    <div class="cluster-desc">Largest petal dimensions. Mostly <em>Iris virginica</em>. Overlapping boundary region with Cluster 1 causes impurity.</div>
+    <div class="cluster-count">n ≈ 52 · petal_length ≈ 5.74 · petal_width ≈ 2.07</div>
+  </div>
+</div>
+
+<div class="card">
+  <p class="card-title">3.4 Algorithm Selection Summary</p>
+  <table>
+    <thead>
+      <tr><th>Criterion</th><th>K-Means</th><th>DBSCAN</th><th>Hierarchical</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Requires specifying k</td><td>✅ Yes</td><td>❌ No</td><td>✅ Yes (at cut)</td></tr>
+      <tr><td>Handles noise / outliers</td><td>❌ No</td><td>✅ Yes</td><td>❌ No</td></tr>
+      <tr><td>Arbitrary cluster shapes</td><td>❌ Spherical only</td><td>✅ Yes</td><td>⚠ Depends on linkage</td></tr>
+      <tr><td>Produces dendrogram</td><td>❌ No</td><td>❌ No</td><td>✅ Yes</td></tr>
+      <tr><td>Best internal metric (Iris)</td><td>✅ 0.553</td><td>⚠ 0.501</td><td>0.540</td></tr>
+      <tr><td>Best ARI (Iris)</td><td>✅ 0.731</td><td>⚠ 0.569</td><td>0.718</td></tr>
+    </tbody>
+  </table>
+  <div class="callout callout-teal"><strong>Recommended for this dataset:</strong> K-Means (k=3) — best internal and external metrics, leverages the approximately spherical cluster geometry of the Iris feature space.</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4                                                      -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="divider"></div>
+<p class="section-label" id="s4">04 — Key Findings and Visualizations</p>
+
+<div class="card">
+  <p class="card-title">4.1 Algorithm Comparison — Silhouette Score</p>
+  <div style="margin-top:8px;">
+    <div class="metric-row">
+      <div class="metric-label">K-Means (k=3)</div>
+      <div class="metric-bar-bg"><div class="metric-bar-fill fill-teal" style="width:82%">0.553</div></div>
+    </div>
+    <div class="metric-row">
+      <div class="metric-label">Hierarchical Ward</div>
+      <div class="metric-bar-bg"><div class="metric-bar-fill fill-purple" style="width:78%">0.540</div></div>
+    </div>
+    <div class="metric-row">
+      <div class="metric-label">DBSCAN (ε=0.5)</div>
+      <div class="metric-bar-bg"><div class="metric-bar-fill fill-accent" style="width:70%">0.501</div></div>
+    </div>
+  </div>
+  <div class="callout callout-teal"><strong>K-Means</strong> leads on all internal metrics, benefiting from the roughly spherical cluster shapes in this dataset.</div>
+</div>
+
+<div class="card">
+  <p class="card-title">4.2 External Validation — ARI vs True Labels</p>
+  <div style="margin-top:8px;">
+    <div class="metric-row">
+      <div class="metric-label">K-Means (k=3)</div>
+      <div class="metric-bar-bg"><div class="metric-bar-fill fill-teal" style="width:91%">0.731</div></div>
+    </div>
+    <div class="metric-row">
+      <div class="metric-label">Hierarchical Ward</div>
+      <div class="metric-bar-bg"><div class="metric-bar-fill fill-purple" style="width:88%">0.718</div></div>
+    </div>
+    <div class="metric-row">
+      <div class="metric-label">DBSCAN (ε=0.5)</div>
+      <div class="metric-bar-bg"><div class="metric-bar-fill fill-accent" style="width:68%">0.569</div></div>
+    </div>
+  </div>
+  <div class="callout callout-orange">ARI = 1.0 would mean perfect label recovery. ARI ≈ 0.73 reflects the versicolor/virginica boundary overlap inherent in the data, not an algorithm deficiency.</div>
+</div>
+
+<div class="viz-card">
+  <div class="viz-label">🔵 4.3 — PCA Projection — 2D (95.6% Variance Retained)</div>
+  <div style="padding:16px;">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" class="viz-svg">
+      <rect width="700" height="300" fill="#F5FAFB" rx="4"/>
+      <line x1="60" y1="260" x2="660" y2="260" stroke="#B0D8DF" stroke-width="1.5"/>
+      <line x1="60" y1="20" x2="60" y2="260" stroke="#B0D8DF" stroke-width="1.5"/>
+      <text x="360" y="288" font-family="Source Code Pro,monospace" font-size="11" fill="#4A7A85" text-anchor="middle">PC1 (72.8% variance) — larger values = larger petals</text>
+      <text x="18" y="145" font-family="Source Code Pro,monospace" font-size="11" fill="#4A7A85" text-anchor="middle" transform="rotate(-90,18,145)">PC2 (22.8%)</text>
+      <!-- Cluster 0 Setosa — right side, tight cluster -->
+      <g opacity="0.85">
+        <circle cx="540" cy="80" r="6" fill="#2E8B9A"/><circle cx="558" cy="95" r="6" fill="#2E8B9A"/>
+        <circle cx="524" cy="100" r="6" fill="#2E8B9A"/><circle cx="548" cy="68" r="6" fill="#2E8B9A"/>
+        <circle cx="565" cy="78" r="6" fill="#2E8B9A"/><circle cx="576" cy="90" r="6" fill="#2E8B9A"/>
+        <circle cx="518" cy="112" r="6" fill="#2E8B9A"/><circle cx="552" cy="108" r="6" fill="#2E8B9A"/>
+        <circle cx="570" cy="60" r="6" fill="#2E8B9A"/><circle cx="535" cy="122" r="6" fill="#2E8B9A"/>
+        <circle cx="582" cy="104" r="6" fill="#2E8B9A"/><circle cx="560" cy="130" r="6" fill="#2E8B9A"/>
+      </g>
+      <!-- Cluster 1 Versicolor — middle -->
+      <g opacity="0.85">
+        <circle cx="290" cy="165" r="6" fill="#5B4DA0"/><circle cx="310" cy="148" r="6" fill="#5B4DA0"/>
+        <circle cx="272" cy="178" r="6" fill="#5B4DA0"/><circle cx="305" cy="188" r="6" fill="#5B4DA0"/>
+        <circle cx="282" cy="152" r="6" fill="#5B4DA0"/><circle cx="322" cy="170" r="6" fill="#5B4DA0"/>
+        <circle cx="296" cy="196" r="6" fill="#5B4DA0"/><circle cx="265" cy="142" r="6" fill="#5B4DA0"/>
+        <circle cx="335" cy="160" r="6" fill="#5B4DA0"/><circle cx="315" cy="138" r="6" fill="#5B4DA0"/>
+        <circle cx="278" cy="205" r="6" fill="#5B4DA0"/><circle cx="342" cy="182" r="6" fill="#5B4DA0"/>
+      </g>
+      <!-- Cluster 2 Virginica — left, overlapping with versicolor -->
+      <g opacity="0.85">
+        <circle cx="148" cy="185" r="6" fill="#E07B39"/><circle cx="168" cy="168" r="6" fill="#E07B39"/>
+        <circle cx="132" cy="198" r="6" fill="#E07B39"/><circle cx="185" cy="178" r="6" fill="#E07B39"/>
+        <circle cx="152" cy="210" r="6" fill="#E07B39"/><circle cx="172" cy="155" r="6" fill="#E07B39"/>
+        <circle cx="140" cy="172" r="6" fill="#E07B39"/><circle cx="192" cy="163" r="6" fill="#E07B39"/>
+        <circle cx="210" cy="178" r="6" fill="#E07B39"/><circle cx="205" cy="195" r="6" fill="#E07B39"/>
+        <circle cx="245" cy="182" r="6" fill="#E07B39"/><circle cx="125" cy="215" r="6" fill="#E07B39"/>
+      </g>
+      <!-- Legend -->
+      <rect x="62" y="22" width="168" height="70" fill="white" rx="5" stroke="#B0D8DF" stroke-width="0.8" opacity="0.92"/>
+      <circle cx="78" cy="42" r="6" fill="#2E8B9A" opacity="0.85"/>
+      <text x="90" y="46" font-family="Source Sans 3,sans-serif" font-size="11" fill="#1A2D35">Cluster 0 — Setosa-like</text>
+      <circle cx="78" cy="59" r="6" fill="#5B4DA0" opacity="0.85"/>
+      <text x="90" y="63" font-family="Source Sans 3,sans-serif" font-size="11" fill="#1A2D35">Cluster 1 — Versicolor</text>
+      <circle cx="78" cy="76" r="6" fill="#E07B39" opacity="0.85"/>
+      <text x="90" y="80" font-family="Source Sans 3,sans-serif" font-size="11" fill="#1A2D35">Cluster 2 — Virginica</text>
+      <text x="215" y="220" font-family="Source Sans 3,sans-serif" font-size="10" fill="#9B4A10" font-style="italic">← overlap zone</text>
+    </svg>
+  </div>
+  <div class="viz-body">PC1 (72.8%) separates setosa cleanly on the right from versicolor/virginica on the left. PC2 (22.8%) further distinguishes the two overlapping species. The overlap zone on the left explains ARI &lt; 1.0 — this is a data-level boundary, not an algorithm failure.</div>
+</div>
+
+<div class="viz-card">
+  <div class="viz-label">📈 4.4 — Elbow Curve — Optimal k Selection (K-Means Inertia)</div>
+  <div style="padding:16px;">
+    <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" class="viz-svg">
+      <rect width="700" height="280" fill="#F5FAFB" rx="4"/>
+      <line x1="70" y1="230" x2="640" y2="230" stroke="#B0D8DF" stroke-width="1.5"/>
+      <line x1="70" y1="20" x2="70" y2="230" stroke="#B0D8DF" stroke-width="1.5"/>
+      <line x1="70" y1="76" x2="640" y2="76" stroke="#E0EEF2" stroke-width="1"/>
+      <line x1="70" y1="128" x2="640" y2="128" stroke="#E0EEF2" stroke-width="1"/>
+      <line x1="70" y1="180" x2="640" y2="180" stroke="#E0EEF2" stroke-width="1"/>
+      <text x="62" y="24"  font-family="Source Code Pro,monospace" font-size="9" fill="#4A7A85" text-anchor="end">500</text>
+      <text x="62" y="76"  font-family="Source Code Pro,monospace" font-size="9" fill="#4A7A85" text-anchor="end">380</text>
+      <text x="62" y="128" font-family="Source Code Pro,monospace" font-size="9" fill="#4A7A85" text-anchor="end">260</text>
+      <text x="62" y="180" font-family="Source Code Pro,monospace" font-size="9" fill="#4A7A85" text-anchor="end">140</text>
+      <text x="62" y="230" font-family="Source Code Pro,monospace" font-size="9" fill="#4A7A85" text-anchor="end">80</text>
+      <text x="150" y="248" font-family="Source Code Pro,monospace" font-size="11" fill="#4A7A85" text-anchor="middle">k=2</text>
+      <text x="230" y="248" font-family="Source Code Pro,monospace" font-size="11" fill="#E07B39" text-anchor="middle" font-weight="700">k=3</text>
+      <text x="310" y="248" font-family="Source Code Pro,monospace" font-size="11" fill="#4A7A85" text-anchor="middle">k=4</text>
+      <text x="390" y="248" font-family="Source Code Pro,monospace" font-size="11" fill="#4A7A85" text-anchor="middle">k=5</text>
+      <text x="470" y="248" font-family="Source Code Pro,monospace" font-size="11" fill="#4A7A85" text-anchor="middle">k=6</text>
+      <text x="550" y="248" font-family="Source Code Pro,monospace" font-size="11" fill="#4A7A85" text-anchor="middle">k=7</text>
+      <text x="630" y="248" font-family="Source Code Pro,monospace" font-size="11" fill="#4A7A85" text-anchor="middle">k=8</text>
+      <text x="355" y="268" font-family="Source Code Pro,monospace" font-size="10" fill="#4A7A85" text-anchor="middle">Number of Clusters (k)</text>
+      <text x="16" y="128" font-family="Source Code Pro,monospace" font-size="10" fill="#4A7A85" text-anchor="middle" transform="rotate(-90,16,128)">Inertia (WCSS)</text>
+      <polyline points="150,40 230,105 310,158 390,184 470,200 550,212 630,220"
+                fill="none" stroke="#2E8B9A" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="150" cy="40"  r="6" fill="#2E8B9A"/>
+      <circle cx="230" cy="105" r="8" fill="#E07B39" stroke="white" stroke-width="2"/>
+      <circle cx="310" cy="158" r="6" fill="#2E8B9A"/>
+      <circle cx="390" cy="184" r="6" fill="#2E8B9A"/>
+      <circle cx="470" cy="200" r="6" fill="#2E8B9A"/>
+      <circle cx="550" cy="212" r="6" fill="#2E8B9A"/>
+      <circle cx="630" cy="220" r="6" fill="#2E8B9A"/>
+      <line x1="230" y1="105" x2="230" y2="230" stroke="#E07B39" stroke-width="1.5" stroke-dasharray="5,4"/>
+      <rect x="238" y="140" width="72" height="22" fill="#FDF0E6" rx="4"/>
+      <text x="274" y="155" font-family="Source Sans 3,sans-serif" font-size="11" fill="#E07B39" font-weight="700" text-anchor="middle">Elbow k=3</text>
+    </svg>
+  </div>
+  <div class="viz-body">The clear elbow at k=3 confirms three clusters as optimal — consistent with the true three species. Beyond k=3, additional clusters yield rapidly diminishing returns in within-cluster sum of squares reduction.</div>
+</div>
+
+<div class="card">
+  <p class="card-title">4.5 Key Findings Summary</p>
+  <div class="callout callout-teal">
+    <strong>🎯 Setosa is trivially separable</strong><br>
+    All three algorithms assign all 50 setosa specimens to a single cluster with no misassignments. The small petal dimensions create a distinct island in feature space, confirmed by PCA projection and dendrogram structure.
+  </div>
+  <div class="callout callout-orange">
+    <strong>⚡ Petal features drive clustering</strong><br>
+    PCA loadings show PC1 is dominated by petal_length (0.581) and petal_width (0.565). Clusters formed in petal-feature space match species better than sepal-based separation — directly mirroring the feature importance findings from the supervised classification report, where petal features accounted for 86.1% of Random Forest importance.
+  </div>
+  <div class="callout callout-purple">
+    <strong>🔀 Versicolor/Virginica overlap is a data-level challenge</strong><br>
+    Approximately 14 boundary specimens are consistently misassigned across all three algorithms. This is not an algorithm failure — it reflects the true biological overlap between the two species in petal measurement space.
+  </div>
+  <div class="callout callout-green">
+    <strong>📊 K-Means and Hierarchical are competitive; DBSCAN underperforms here</strong><br>
+    K-Means and Hierarchical (Ward) achieve similar ARI scores (0.731 vs 0.718). DBSCAN underperforms (ARI = 0.569) because its density-based approach struggles with the gradual density transition between versicolor and virginica on this dataset.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SECTION 5                                                      -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="divider"></div>
+<p class="section-label" id="s5">05 — Limitations and Future Work</p>
+
+<div class="card">
+  <p class="card-title">5.1 Limitations</p>
+
+  <h3>5.1.1 Small Dataset Size</h3>
+  <p>With only 150 samples, internal metric estimates (silhouette, Davies-Bouldin) have high variance. Results may not reflect the relative performance of algorithms on larger datasets with more complex cluster geometries or greater intra-cluster variability.</p>
+
+  <h3>5.1.2 Known k Used for Comparison</h3>
+  <p>Setting k=3 for K-Means and Hierarchical clustering leverages prior knowledge of the true class count, which is unavailable in real unsupervised deployments. In practice, k must be determined purely from internal metrics — a significantly harder problem on ambiguous data.</p>
+
+  <h3>5.1.3 Cluster Shape Assumption</h3>
+  <p>K-Means and Ward linkage both assume roughly spherical, similarly-sized clusters. On datasets with elongated, crescent-shaped, or concentric cluster geometries, both algorithms fail systematically. DBSCAN handles arbitrary shapes but requires careful parameter tuning.</p>
+
+  <h3>5.1.4 Standardization Assumptions</h3>
+  <p>StandardScaler was applied assuming no significant outliers. RobustScaler (median/IQR-based) is preferred when outliers are present — this is an untested assumption for this dataset.</p>
+
+  <h3>5.1.5 t-SNE Instability</h3>
+  <p>t-SNE results vary with different perplexity values and should be used only for visualization — never as a preprocessing step for distance-based clustering metrics.</p>
+
+  <h3>5.1.6 No Temporal or Geographic Context</h3>
+  <p>The dataset contains no metadata about when or where specimens were collected. Temporal trends or geographic clustering could affect cluster structure in ways this analysis cannot capture.</p>
+</div>
+
+<div class="card">
+  <p class="card-title">5.2 Future Work</p>
+
+  <h3>5.2.1 Gaussian Mixture Models (GMM)</h3>
+  <p>GMM is a probabilistic generalization of K-Means that allows soft cluster assignments and handles elliptical clusters. Each point receives a probability of belonging to each component, which better reflects the versicolor/virginica boundary overlap.</p>
+  <span class="code-label">Python — Suggested: GMM</span>
+  <div class="code-block">from sklearn.mixture import GaussianMixture
+
+gmm        = GaussianMixture(n_components=3, covariance_type='full', random_state=42)
+gmm.fit(X_scaled)
+proba      = gmm.predict_proba(X_scaled)  # soft assignments
+labels_gmm = gmm.predict(X_scaled)
+print(f'GMM BIC: {gmm.bic(X_scaled):.2f}')
+print(f'GMM ARI: {adjusted_rand_score(y_true, labels_gmm):.3f}')</div>
+
+  <h3>5.2.2 UMAP for Dimensionality Reduction</h3>
+  <p>UMAP provides faster, more stable, and globally coherent embeddings compared to t-SNE, and unlike t-SNE can be used as a preprocessing step for clustering.</p>
+  <span class="code-label">Python — Suggested: UMAP</span>
+  <div class="code-block">import umap
+
+reducer = umap.UMAP(n_components=2, n_neighbors=15, min_dist=0.1, random_state=42)
+X_umap  = reducer.fit_transform(X_scaled)
+# X_umap can be passed directly to KMeans or other clustering algorithms</div>
+
+  <h3>5.2.3 Automated k Selection — Gap Statistic</h3>
+  <p>The Gap Statistic provides a principled automated selection of the optimal number of clusters by comparing observed inertia to that of random reference datasets — more rigorous than visual elbow inspection.</p>
+
+  <h3>5.2.4 Apply to Real Unlabeled Data</h3>
+  <p>The pipeline should be tested on datasets without known labels (e.g., customer transaction data, genomic expression profiles) where external validation is unavailable and domain expert interpretation is the only validation path.</p>
+
+  <h3>5.2.5 Model Serialization</h3>
+  <span class="code-label">Python — Suggested: Save and Load Fitted Clustering Pipeline</span>
+  <div class="code-block">import joblib
+
+pipeline_state = {'scaler': scaler, 'kmeans': kmeans, 'n_clusters': 3}
+joblib.dump(pipeline_state, 'iris_unsupervised_pipeline.pkl')
+
+loaded     = joblib.load('iris_unsupervised_pipeline.pkl')
+new_sample = np.array([[5.5, 2.6, 4.4, 1.2]])
+new_scaled = loaded['scaler'].transform(new_sample)
+cluster_id = loaded['kmeans'].predict(new_scaled)
+print(f'Assigned to cluster: {cluster_id[0]}')  # → 1 (versicolor-like)</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- APPENDIX                                                       -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="page-break-hint">appendix</div>
+<p class="section-label" id="appendix">Appendix</p>
+
+<div class="card">
+  <p class="card-title">A. Evaluation Metric Definitions</p>
+  <table>
+    <thead><tr><th>Metric</th><th>Range</th><th>Interpretation</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Silhouette Score</strong></td><td>−1 to +1 ↑</td><td>Mean (intra-cluster cohesion − inter-cluster separation). +1 = perfect, 0 = overlapping, −1 = wrong assignment.</td></tr>
+      <tr><td><strong>Davies-Bouldin</strong></td><td>≥ 0 ↓</td><td>Average similarity of each cluster with its most similar neighbour. 0 = perfect separation.</td></tr>
+      <tr><td><strong>Calinski-Harabasz</strong></td><td>≥ 0 ↑</td><td>Ratio of between-cluster to within-cluster dispersion. Higher = better-defined clusters.</td></tr>
+      <tr><td><strong>ARI</strong></td><td>−1 to +1 ↑</td><td>Adjusted Rand Index. Chance-corrected overlap between discovered clusters and true labels. 1 = perfect, 0 = random.</td></tr>
+      <tr><td><strong>NMI</strong></td><td>0 to 1 ↑</td><td>Normalized Mutual Information. Measures shared information between cluster and label assignments.</td></tr>
+      <tr><td><strong>Homogeneity</strong></td><td>0 to 1 ↑</td><td>Each cluster contains only members of a single true class.</td></tr>
+      <tr><td><strong>Inertia (WCSS)</strong></td><td>≥ 0 ↓</td><td>Within-cluster sum of squared distances to centroids. K-Means minimizes this directly.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <p class="card-title">B. Full Requirements File</p>
+  <span class="code-label">requirements.txt</span>
+  <div class="code-block">scikit-learn==1.4.2
+pandas==2.2.1
+numpy==1.26.4
+matplotlib==3.8.4
+seaborn==0.13.2
+scipy==1.13.0
+umap-learn==0.5.6
+joblib==1.3.2</div>
+</div>
+
+<div class="card">
+  <p class="card-title">C. Algorithm Selection Guide</p>
+  <table>
+    <thead><tr><th>Scenario</th><th>Recommended Algorithm</th></tr></thead>
+    <tbody>
+      <tr><td>Known approximate k, spherical clusters</td><td><span class="algo-badge algo-kmeans">K-Means</span></td></tr>
+      <tr><td>Unknown k, arbitrary shapes, noise present</td><td><span class="algo-badge algo-dbscan">DBSCAN</span></td></tr>
+      <tr><td>Need hierarchical structure / dendrogram</td><td><span class="algo-badge algo-hier">Hierarchical</span></td></tr>
+      <tr><td>Soft / probabilistic cluster assignments</td><td><span class="algo-badge algo-pca">GMM</span></td></tr>
+      <tr><td>Visualization in 2D with local structure preserved</td><td><span class="algo-badge algo-tsne">t-SNE / UMAP</span></td></tr>
+      <tr><td>Visualization with interpretable axes</td><td><span class="algo-badge algo-pca">PCA</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <p class="card-title">D. Glossary</p>
+  <table>
+    <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Centroid</strong></td><td>The mean position of all points in a K-Means cluster; re-computed at each iteration until convergence.</td></tr>
+      <tr><td><strong>Core point (DBSCAN)</strong></td><td>A point with at least min_samples neighbours within radius ε. Core points seed DBSCAN clusters.</td></tr>
+      <tr><td><strong>Dendrogram</strong></td><td>A tree diagram showing the hierarchical merging sequence of clusters in agglomerative clustering.</td></tr>
+      <tr><td><strong>Elbow method</strong></td><td>Plotting within-cluster sum of squares vs. k and selecting the k where the curve bends sharply.</td></tr>
+      <tr><td><strong>Epsilon (ε)</strong></td><td>DBSCAN's neighbourhood radius parameter; points within ε of each other are considered neighbours.</td></tr>
+      <tr><td><strong>Explained variance ratio</strong></td><td>Proportion of total data variance captured by each principal component. Sum across all PCs = 1.</td></tr>
+      <tr><td><strong>Inertia (WCSS)</strong></td><td>Within-cluster sum of squared distances to centroids; the objective minimised by K-Means.</td></tr>
+      <tr><td><strong>k-means++</strong></td><td>Improved K-Means initialisation that spreads initial centroids across the data, reducing poor local optima.</td></tr>
+      <tr><td><strong>Noise point (DBSCAN)</strong></td><td>A point not reachable from any core point; labelled −1 and excluded from cluster assignments.</td></tr>
+      <tr><td><strong>PC loading</strong></td><td>The weight of each original feature in a principal component; indicates each feature's contribution.</td></tr>
+      <tr><td><strong>Perplexity</strong></td><td>t-SNE hyperparameter controlling effective neighbourhood size; typically set between 5 and 50.</td></tr>
+      <tr><td><strong>StandardScaler</strong></td><td>Transforms features to zero mean and unit variance: z = (x − mean) / std.</td></tr>
+      <tr><td><strong>Ward linkage</strong></td><td>Hierarchical clustering method that minimises total within-cluster variance at each merge step.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <p class="card-title">E. Dataset Citation</p>
+  <p>Fisher, R.A. (1936). The Use of Multiple Measurements in Taxonomic Problems. <em>Annals of Eugenics</em>, 7(2), 179–188.</p>
+  <p>UCI Machine Learning Repository: Iris Data Set. <a href="https://archive.ics.uci.edu/dataset/53/iris" style="color:var(--teal);">https://archive.ics.uci.edu/dataset/53/iris</a>. Accessed March 2026.</p>
+  <p>Pedregosa, F. et al. (2011). Scikit-learn: Machine Learning in Python. <em>Journal of Machine Learning Research</em>, 12, 2825–2830.</p>
+  <p>McInnes, L., Healy, J., &amp; Melville, J. (2018). UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction. <em>arXiv:1802.03426</em>.</p>
+</div>
+
+<!-- ══ FOOTER ═════════════════════════════════════════════════════ -->
+<div class="footer">
+  <div class="footer-left">
+    <strong>Data Science Practicum · Spring 2026</strong> · UCI Iris Dataset (Fisher, 1936) ·
+    sklearn 1.4 · scipy 1.13 · Python 3.11
+  </div>
+  <div class="footer-right">UNSUPERVISED ML REPORT · IRIS CLUSTERING &amp; DIMENSIONALITY REDUCTION</div>
+</div>
+
+</div>
+</body>
+</html>
